@@ -27,9 +27,12 @@ fn main() {
     let mut buffer = String::new();
     let stdin = io::stdin();
     stdin.read_line(&mut buffer).unwrap();
-    match parse_weekday(buffer) {
-        Ok(d) => println!("{}, got it.", display_weekday(d)),
-        Err(_) => println!("Unrecognized weekday."),
+    let input_weekday = parse_weekday(buffer).unwrap();
+
+    if input_weekday == random_date.weekday() {
+        println!("Correct!");
+    } else {
+        println!("Nope. It's a {}", display_weekday(random_date.weekday()));
     }
 }
 
