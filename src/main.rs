@@ -11,17 +11,7 @@ use std::io;
 const DAYS_IN_TWO_CENTURIES: i64 = 73048;
 
 fn main() {
-    let mut rng = ChaCha20Rng::from_entropy();
-    let random = rng.gen_range(-DAYS_IN_TWO_CENTURIES..DAYS_IN_TWO_CENTURIES);
-    let now = Local::now().date().naive_local();
-
-    let random_date = match random {
-        0 => now,
-        _ => now
-            .checked_add_signed(chrono::Duration::days(random))
-            .unwrap(),
-    };
-
+    let random_date = generate_date();
     println!("What day of the week was: {}?", random_date);
 
     let mut buffer = String::new();
@@ -33,6 +23,19 @@ fn main() {
         println!("Correct!");
     } else {
         println!("Nope. It's a {}", display_weekday(random_date.weekday()));
+    }
+}
+
+fn generate_date() -> chrono::NaiveDate {
+    let mut rng = ChaCha20Rng::from_entropy();
+    let random = rng.gen_range(-DAYS_IN_TWO_CENTURIES..DAYS_IN_TWO_CENTURIES);
+    let now = Local::now().date().naive_local();
+
+    match random {
+        0 => now,
+        _ => now
+            .checked_add_signed(chrono::Duration::days(random))
+            .unwrap(),
     }
 }
 
