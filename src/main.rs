@@ -1,6 +1,7 @@
 use chrono::prelude::*;
 use rand::prelude::*;
 use rand_chacha::ChaCha20Rng;
+use std::io;
 
 // Note that this value can be off by 1 depending on what centuries we're talking about.
 // Centuries that are cleanly divisible by 400 (e.g. 1600, 2000, etc.) have an extra "century leap year".
@@ -20,6 +21,13 @@ fn main() {
             .unwrap(),
     };
 
-    println!("{}", random_date);
-    println!("{}", random_date.format("%A"));
+    println!("What day of the week was: {}?", random_date);
+
+    let mut buffer = String::new();
+    let stdin = io::stdin();
+    stdin.read_line(&mut buffer).unwrap();
+    match buffer.trim().parse::<Weekday>() {
+        Ok(weekday) => println!("{}, got it.", weekday),
+        Err(_) => println!("Unrecognized weekday."),
+    }
 }
