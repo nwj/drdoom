@@ -11,18 +11,45 @@ use std::io;
 const DAYS_IN_TWO_CENTURIES: i64 = 73048;
 
 fn main() {
-    let random_date = generate_date();
-    println!("What day of the week was: {}?", random_date);
+    loop {
+        let random_date = generate_date();
+        println!(
+            "What day of the week {} {}?",
+            is_was(random_date),
+            random_date.format("%B %d, %Y")
+        );
 
-    let mut buffer = String::new();
-    let stdin = io::stdin();
-    stdin.read_line(&mut buffer).unwrap();
-    let input_weekday = parse_weekday(buffer).unwrap();
+        let input_weekday;
+        loop {
+            let mut buffer = String::new();
+            let stdin = io::stdin();
+            stdin.read_line(&mut buffer).unwrap();
+            match parse_weekday(buffer) {
+                Ok(weekday) => {
+                    input_weekday = weekday;
+                    break;
+                }
+                Err(_) => {
+                    println!("Unrecognized weekday. Try again.");
+                }
+            }
+        }
 
-    if input_weekday == random_date.weekday() {
-        println!("Correct!");
-    } else {
-        println!("Nope. It's a {}", display_weekday(random_date.weekday()));
+        if input_weekday == random_date.weekday() {
+            println!(
+                "Correct! {} {} a {}.\n",
+                random_date.format("%B %d, %Y"),
+                is_was(random_date),
+                display_weekday(random_date.weekday())
+            );
+        } else {
+            println!(
+                "Nope. {} {} a {}.\n",
+                random_date.format("%B %d, %Y"),
+                is_was(random_date),
+                display_weekday(random_date.weekday())
+            );
+        }
     }
 }
 
@@ -61,5 +88,13 @@ fn display_weekday(weekday: chrono::Weekday) -> &'static str {
         chrono::Weekday::Fri => "Friday",
         chrono::Weekday::Sat => "Saturday",
         chrono::Weekday::Sun => "Sunday",
+    }
+}
+
+fn is_was(date: chrono::NaiveDate) -> &'static str {
+    if date >= Local::now().date().naive_local() {
+        "is"
+    } else {
+        "was"
     }
 }
