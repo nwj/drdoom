@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use chrono::prelude::*;
 use rand::prelude::*;
 use rand_chacha::ChaCha20Rng;
-use std::io;
+use rustyline::Editor;
 
 // Note that this value can be off by 1 depending on what centuries we're talking about.
 // Centuries that are cleanly divisible by 400 (e.g. 1600, 2000, etc.) have an extra "century leap year".
@@ -12,6 +12,7 @@ const DAYS_IN_TWO_CENTURIES: i64 = 73048;
 
 fn main() {
     let mut rng = ChaCha20Rng::from_entropy();
+    let mut rl = Editor::<()>::new();
 
     loop {
         let random_date = generate_date(&mut rng);
@@ -21,12 +22,11 @@ fn main() {
             random_date.format("%B %d, %Y")
         );
 
+        let mut input;
         let input_weekday;
         loop {
-            let mut buffer = String::new();
-            let stdin = io::stdin();
-            stdin.read_line(&mut buffer).unwrap();
-            match parse_weekday(buffer) {
+            input = rl.readline(">> ").unwrap();
+            match parse_weekday(input) {
                 Ok(weekday) => {
                     input_weekday = weekday;
                     break;
