@@ -11,8 +11,10 @@ use std::io;
 const DAYS_IN_TWO_CENTURIES: i64 = 73048;
 
 fn main() {
+    let mut rng = ChaCha20Rng::from_entropy();
+
     loop {
-        let random_date = generate_date();
+        let random_date = generate_date(&mut rng);
         println!(
             "What day of the week {} {}?",
             is_was(random_date),
@@ -53,8 +55,7 @@ fn main() {
     }
 }
 
-fn generate_date() -> chrono::NaiveDate {
-    let mut rng = ChaCha20Rng::from_entropy();
+fn generate_date(mut rng: impl rand::Rng) -> chrono::NaiveDate {
     let random = rng.gen_range(-DAYS_IN_TWO_CENTURIES..DAYS_IN_TWO_CENTURIES);
     let now = Local::now().date().naive_local();
 
