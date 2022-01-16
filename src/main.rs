@@ -14,6 +14,11 @@ fn main() {
     let mut rng = ChaCha20Rng::from_entropy();
     let mut rl = Editor::<()>::new();
 
+    let mut max_streak = 0;
+    let mut current_streak = 0;
+    let mut correct = 0;
+    let mut incorrect = 0;
+
     loop {
         let random_date = generate_date(&mut rng);
         println!(
@@ -39,19 +44,37 @@ fn main() {
 
         if input_weekday == random_date.weekday() {
             println!(
-                "Correct! {} {} a {}.\n",
+                "Yes! {} {} a {}.",
                 random_date.format("%B %d, %Y"),
                 is_was(random_date),
                 display_weekday(random_date.weekday())
             );
+
+            correct += 1;
+            current_streak += 1;
+            if current_streak > max_streak {
+                max_streak = current_streak;
+            }
         } else {
             println!(
-                "Nope. {} {} a {}.\n",
+                "Nope. {} {} a {}.",
                 random_date.format("%B %d, %Y"),
                 is_was(random_date),
                 display_weekday(random_date.weekday())
             );
+
+            incorrect += 1;
+            current_streak = 0;
         }
+
+        println!(
+            "Correct: {} / {} ({}%) | Streak: {} | Best Streak: {}\n",
+            correct,
+            correct + incorrect,
+            correct / (correct + incorrect),
+            current_streak,
+            max_streak,
+        );
     }
 }
 
