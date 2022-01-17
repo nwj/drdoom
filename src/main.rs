@@ -3,33 +3,22 @@ use chrono::prelude::*;
 use rand::prelude::*;
 use rand_chacha::ChaCha20Rng;
 use rustyline::Editor;
-
-// Note that this value can be off by 1 depending on what centuries we're talking about.
-// Centuries that are cleanly divisible by 400 (e.g. 1600, 2000, etc.) have an extra "century leap year".
-// Centuries _with_ a century leap year have 36,525 days.
-// Centuries _without_ a century leap year have 36,524 days.
-const DAYS_IN_TWO_CENTURIES: i64 = 73048;
+use std::fmt;
 
 fn main() {
     let mut rng = ChaCha20Rng::from_entropy();
     let mut rl = Editor::<()>::new();
-
-    let mut max_streak = 0;
-    let mut current_streak = 0;
-    let mut correct_guesses = 0;
-    let mut total_guesses = 0;
-    let mut average_duration = chrono::Duration::seconds(0);
-    let mut start_time;
-    let mut stop_time;
     let mut random_date;
-    let mut duration;
+
+    let mut prompt_time;
+    let mut stats = Stats::default();
 
     let mut input;
     let mut input_weekday;
 
     loop {
         random_date = generate_date(&mut rng);
-        start_time = Local::now();
+        prompt_time = Local::now();
         println!(
             "What day of the week {} {}?",
             is_was(random_date),
@@ -48,47 +37,34 @@ fn main() {
                 }
             }
         }
-        total_guesses += 1;
-        stop_time = Local::now();
-        duration = stop_time - start_time;
-        average_duration = average_duration + ((duration - average_duration) / total_guesses);
 
         if input_weekday == random_date.weekday() {
+            stats.increment_correct(prompt_time);
             println!(
                 "Yes! {} {} a {}.",
                 random_date.format("%B %d, %Y"),
                 is_was(random_date),
                 display_weekday(random_date.weekday())
             );
-
-            correct_guesses += 1;
-            current_streak += 1;
-            if current_streak > max_streak {
-                max_streak = current_streak;
-            }
         } else {
+            stats.increment_incorrect(prompt_time);
             println!(
                 "Nope. {} {} a {}.",
                 random_date.format("%B %d, %Y"),
                 is_was(random_date),
                 display_weekday(random_date.weekday())
             );
-
-            current_streak = 0;
         }
 
-        println!(
-            "Correct: {} / {} ({:.1}%) | Streak: {} | Duration: {:.2}s\nBest Streak: {} | Average Duration: {:.2}s\n",
-            correct_guesses,
-            total_guesses,
-            (correct_guesses as f64 / total_guesses as f64) * 100.0,
-            current_streak,
-            duration.num_milliseconds() as f64 / 1000.0,
-            max_streak,
-            average_duration.num_milliseconds() as f64 / 1000.0,
-        );
+        println!("{}", stats);
     }
 }
+
+// Note that this value can be off by 1 depending on what centuries we're talking about.
+// Centuries that are cleanly divisible by 400 (e.g. 1600, 2000, etc.) have an extra "century leap year".
+// Centuries _with_ a century leap year have 36,525 days.
+// Centuries _without_ a century leap year have 36,524 days.
+const DAYS_IN_TWO_CENTURIES: i64 = 73048;
 
 fn generate_date(mut rng: impl rand::Rng) -> chrono::NaiveDate {
     let random = rng.gen_range(-DAYS_IN_TWO_CENTURIES..DAYS_IN_TWO_CENTURIES);
@@ -131,5 +107,66 @@ fn is_was(date: chrono::NaiveDate) -> &'static str {
         "is"
     } else {
         "was"
+    }
+}
+
+#[derive(Debug)]
+struct Stats {
+    total_guesses: u32,
+    correct_guesses: u32,
+    current_streak: u32,
+    best_streak: u32,
+    last_duration: chrono::Duration,
+    avg_duration: chrono::Duration,
+}
+
+impl Stats {
+    fn increment_correct(&mut self, prompt_time: DateTime<Local>) -> () {
+        self.total_guesses += 1;
+        self.correct_guesses += 1;
+        self.current_streak += 1;
+        if self.current_streak > self.best_streak {
+            self.best_streak = self.current_streak
+        }
+        self.update_durations(prompt_time);
+    }
+
+    fn increment_incorrect(&mut self, prompt_time: DateTime<Local>) -> () {
+        self.total_guesses += 1;
+        self.current_streak = 0;
+        self.update_durations(prompt_time);
+    }
+
+    fn update_durations(&mut self, prompt_time: DateTime<Local>) -> () {
+        self.last_duration = Local::now() - prompt_time;
+        self.avg_duration = self.avg_duration
+            + ((self.last_duration - self.avg_duration) / self.total_guesses as i32);
+    }
+}
+
+impl fmt::Display for Stats {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Correct: {} / {} ({:.1}%) | Streak: {} | Duration: {:.2}s\nBest Streak: {} | Avg. Duration: {:.2}s\n",
+            self.correct_guesses,
+            self.total_guesses,
+            (self.correct_guesses as f64 / self.total_guesses as f64) * 100.0,
+            self.current_streak,
+            self.last_duration.num_milliseconds() as f64 / 1000.0,
+            self.best_streak,
+            self.avg_duration.num_milliseconds() as f64 / 1000.0,
+        )
+    }
+}
+
+impl Default for Stats {
+    fn default() -> Self {
+        Stats {
+            total_guesses: 0,
+            correct_guesses: 0,
+            current_streak: 0,
+            best_streak: 0,
+            last_duration: chrono::Duration::seconds(0),
+            avg_duration: chrono::Duration::seconds(0),
+        }
     }
 }
