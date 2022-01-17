@@ -16,11 +16,13 @@ fn main() {
 
     let mut max_streak = 0;
     let mut current_streak = 0;
-    let mut correct = 0;
-    let mut incorrect = 0;
+    let mut correct_guesses = 0;
+    let mut total_guesses = 0;
+    let mut average_duration = chrono::Duration::seconds(0);
 
     loop {
         let random_date = generate_date(&mut rng);
+        let start_time = Local::now();
         println!(
             "What day of the week {} {}?",
             is_was(random_date),
@@ -41,6 +43,10 @@ fn main() {
                 }
             }
         }
+        total_guesses += 1;
+        let stop_time = Local::now();
+        let duration = stop_time - start_time;
+        average_duration = average_duration + ((duration - average_duration) / total_guesses);
 
         if input_weekday == random_date.weekday() {
             println!(
@@ -50,7 +56,7 @@ fn main() {
                 display_weekday(random_date.weekday())
             );
 
-            correct += 1;
+            correct_guesses += 1;
             current_streak += 1;
             if current_streak > max_streak {
                 max_streak = current_streak;
@@ -63,17 +69,18 @@ fn main() {
                 display_weekday(random_date.weekday())
             );
 
-            incorrect += 1;
             current_streak = 0;
         }
 
         println!(
-            "Correct: {} / {} ({}%) | Streak: {} | Best Streak: {}\n",
-            correct,
-            correct + incorrect,
-            correct / (correct + incorrect),
+            "Correct: {} / {} ({:.1}%) | Streak: {} | Duration: {:.2}s\nBest Streak: {} | Average Duration: {:.2}s\n",
+            correct_guesses,
+            total_guesses,
+            (correct_guesses as f64 / total_guesses as f64) * 100.0,
             current_streak,
+            duration.num_milliseconds() as f64 / 1000.0,
             max_streak,
+            average_duration.num_milliseconds() as f64 / 1000.0,
         );
     }
 }
