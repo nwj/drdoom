@@ -19,18 +19,23 @@ fn main() {
     let mut correct_guesses = 0;
     let mut total_guesses = 0;
     let mut average_duration = chrono::Duration::seconds(0);
+    let mut start_time;
+    let mut stop_time;
+    let mut random_date;
+    let mut duration;
+
+    let mut input;
+    let mut input_weekday;
 
     loop {
-        let random_date = generate_date(&mut rng);
-        let start_time = Local::now();
+        random_date = generate_date(&mut rng);
+        start_time = Local::now();
         println!(
             "What day of the week {} {}?",
             is_was(random_date),
             random_date.format("%B %d, %Y")
         );
 
-        let mut input;
-        let input_weekday;
         loop {
             input = rl.readline(">> ").unwrap();
             match parse_weekday(input) {
@@ -44,8 +49,8 @@ fn main() {
             }
         }
         total_guesses += 1;
-        let stop_time = Local::now();
-        let duration = stop_time - start_time;
+        stop_time = Local::now();
+        duration = stop_time - start_time;
         average_duration = average_duration + ((duration - average_duration) / total_guesses);
 
         if input_weekday == random_date.weekday() {
