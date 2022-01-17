@@ -91,9 +91,8 @@ fn generate_date(mut rng: impl rand::Rng) -> chrono::NaiveDate {
 
     match random {
         0 => now,
-        _ => now
-            .checked_add_signed(chrono::Duration::days(random))
-            .unwrap(),
+        // Overflow is theoretically possible here, but unlikely, so I'm not using checked_add_signed.
+        _ => now + chrono::Duration::days(random),
     }
 }
 
