@@ -1,18 +1,17 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use chrono::prelude::*;
+use chrono::{Duration, Weekday};
 use rand::prelude::*;
 use rand_chacha::ChaCha20Rng;
 use rustyline::Editor;
 use std::fmt;
 
-fn main() {
+fn main() -> Result<()> {
     let mut rng = ChaCha20Rng::from_entropy();
     let mut rl = Editor::<()>::new();
-    let mut random_date;
-
-    let mut prompt_time;
     let mut stats = Stats::default();
-
+    let mut random_date;
+    let mut prompt_time;
     let mut input;
     let mut input_weekday;
 
@@ -26,14 +25,19 @@ fn main() {
         );
 
         loop {
-            input = rl.readline(">> ").unwrap();
-            match parse_weekday(input) {
-                Ok(weekday) => {
+            input = rl.readline(">> ")?;
+
+            match parse_command(input) {
+                Some(Command::Quit) => {
+                    println!("Quitting...");
+                    return Ok(());
+                }
+                Some(Command::Guess(weekday)) => {
                     input_weekday = weekday;
                     break;
                 }
-                Err(_) => {
-                    println!("Unrecognized weekday. Try again.");
+                None => {
+                    println!("Unrecognized input. Try again.");
                 }
             }
         }
@@ -66,43 +70,49 @@ fn main() {
 // Centuries _without_ a century leap year have 36,524 days.
 const DAYS_IN_TWO_CENTURIES: i64 = 73048;
 
-fn generate_date(mut rng: impl rand::Rng) -> chrono::NaiveDate {
+enum Command {
+    Quit,
+    Guess(Weekday),
+}
+
+fn generate_date(mut rng: impl rand::Rng) -> NaiveDate {
     let random = rng.gen_range(-DAYS_IN_TWO_CENTURIES..DAYS_IN_TWO_CENTURIES);
     let now = Local::now().date().naive_local();
 
     match random {
         0 => now,
         // Overflow is theoretically possible here, but unlikely, so I'm not using checked_add_signed.
-        _ => now + chrono::Duration::days(random),
+        _ => now + Duration::days(random),
     }
 }
 
-fn parse_weekday(input: String) -> Result<chrono::Weekday> {
+fn parse_command(input: String) -> Option<Command> {
     match input.to_lowercase().trim() {
-        "m" | "mon" | "monday" => Ok(chrono::Weekday::Mon),
-        "t" | "tu" | "tue" | "tues" | "tuesday" => Ok(chrono::Weekday::Tue),
-        "w" | "wed" | "wednesday" => Ok(chrono::Weekday::Wed),
-        "r" | "h" | "th" | "thu" | "thur" | "thurs" | "thursday" => Ok(chrono::Weekday::Thu),
-        "f" | "fri" | "friday" => Ok(chrono::Weekday::Fri),
-        "s" | "sa" | "sat" | "saturday" => Ok(chrono::Weekday::Sat),
-        "u" | "su" | "sun" | "sunday" => Ok(chrono::Weekday::Sun),
-        _ => Err(anyhow!("Could not determine weekday from input")),
+        "q" | "quit" => Some(Command::Quit),
+        "m" | "mo" | "mon" | "monday" => Some(Command::Guess(Weekday::Mon)),
+        "tu" | "tue" | "tues" | "tuesday" => Some(Command::Guess(Weekday::Tue)),
+        "w" | "we" | "wed" | "wednesday" => Some(Command::Guess(Weekday::Wed)),
+        "th" | "thu" | "thur" | "thurs" | "thursday" => Some(Command::Guess(Weekday::Thu)),
+        "f" | "fr" | "fri" | "friday" => Some(Command::Guess(Weekday::Fri)),
+        "sa" | "sat" | "saturday" => Some(Command::Guess(Weekday::Sat)),
+        "su" | "sun" | "sunday" => Some(Command::Guess(Weekday::Sun)),
+        _ => None,
     }
 }
 
 fn display_weekday(weekday: chrono::Weekday) -> &'static str {
     match weekday {
-        chrono::Weekday::Mon => "Monday",
-        chrono::Weekday::Tue => "Tuesday",
-        chrono::Weekday::Wed => "Wednesday",
-        chrono::Weekday::Thu => "Thursday",
-        chrono::Weekday::Fri => "Friday",
-        chrono::Weekday::Sat => "Saturday",
-        chrono::Weekday::Sun => "Sunday",
+        Weekday::Mon => "Monday",
+        Weekday::Tue => "Tuesday",
+        Weekday::Wed => "Wednesday",
+        Weekday::Thu => "Thursday",
+        Weekday::Fri => "Friday",
+        Weekday::Sat => "Saturday",
+        Weekday::Sun => "Sunday",
     }
 }
 
-fn is_was(date: chrono::NaiveDate) -> &'static str {
+fn is_was(date: NaiveDate) -> &'static str {
     if date >= Local::now().date().naive_local() {
         "is"
     } else {
@@ -116,8 +126,8 @@ struct Stats {
     correct_guesses: u32,
     current_streak: u32,
     best_streak: u32,
-    last_duration: chrono::Duration,
-    avg_duration: chrono::Duration,
+    last_duration: Duration,
+    avg_duration: Duration,
 }
 
 impl Stats {
@@ -165,8 +175,8 @@ impl Default for Stats {
             correct_guesses: 0,
             current_streak: 0,
             best_streak: 0,
-            last_duration: chrono::Duration::seconds(0),
-            avg_duration: chrono::Duration::seconds(0),
+            last_duration: Duration::seconds(0),
+            avg_duration: Duration::seconds(0),
         }
     }
 }
