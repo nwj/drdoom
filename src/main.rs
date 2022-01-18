@@ -12,55 +12,48 @@ fn main() -> Result<()> {
     let mut stats = Stats::default();
     let mut random_date;
     let mut prompt_time;
-    let mut input;
-    let mut input_weekday;
 
     loop {
         random_date = generate_date(&mut rng);
         prompt_time = Local::now();
         println!(
-            "What day of the week {} {}?",
+            "What day of the week {}: {}?",
             is_was(random_date),
             random_date.format("%B %d, %Y")
         );
 
         loop {
-            input = rl.readline(">> ")?;
-
-            match parse_command(input) {
+            match parse_command(rl.readline(">> ")?) {
+                None => {
+                    println!("Unrecognized input. Try again.");
+                }
+                Some(Command::Guess(weekday)) => {
+                    if weekday == random_date.weekday() {
+                        stats.increment_correct(prompt_time);
+                        println!(
+                            "✅ Yes! {} {} a {}.",
+                            random_date.format("%B %d, %Y"),
+                            is_was(random_date),
+                            display_weekday(random_date.weekday())
+                        );
+                    } else {
+                        stats.increment_incorrect(prompt_time);
+                        println!(
+                            "❌ Nope. {} {} a {}.",
+                            random_date.format("%B %d, %Y"),
+                            is_was(random_date),
+                            display_weekday(random_date.weekday())
+                        );
+                    }
+                    println!("{}", stats);
+                    break;
+                }
                 Some(Command::Quit) => {
                     println!("Quitting...");
                     return Ok(());
                 }
-                Some(Command::Guess(weekday)) => {
-                    input_weekday = weekday;
-                    break;
-                }
-                None => {
-                    println!("Unrecognized input. Try again.");
-                }
             }
         }
-
-        if input_weekday == random_date.weekday() {
-            stats.increment_correct(prompt_time);
-            println!(
-                "Yes! {} {} a {}.",
-                random_date.format("%B %d, %Y"),
-                is_was(random_date),
-                display_weekday(random_date.weekday())
-            );
-        } else {
-            stats.increment_incorrect(prompt_time);
-            println!(
-                "Nope. {} {} a {}.",
-                random_date.format("%B %d, %Y"),
-                is_was(random_date),
-                display_weekday(random_date.weekday())
-            );
-        }
-
-        println!("{}", stats);
     }
 }
 
@@ -71,8 +64,8 @@ fn main() -> Result<()> {
 const DAYS_IN_TWO_CENTURIES: i64 = 73048;
 
 enum Command {
-    Quit,
     Guess(Weekday),
+    Quit,
 }
 
 fn generate_date(mut rng: impl rand::Rng) -> NaiveDate {
@@ -81,14 +74,13 @@ fn generate_date(mut rng: impl rand::Rng) -> NaiveDate {
 
     match random {
         0 => now,
-        // Overflow is theoretically possible here, but unlikely, so I'm not using checked_add_signed.
         _ => now + Duration::days(random),
     }
 }
 
 fn parse_command(input: String) -> Option<Command> {
     match input.to_lowercase().trim() {
-        "q" | "quit" => Some(Command::Quit),
+        "q" | "quit" | "exit" => Some(Command::Quit),
         "m" | "mo" | "mon" | "monday" => Some(Command::Guess(Weekday::Mon)),
         "tu" | "tue" | "tues" | "tuesday" => Some(Command::Guess(Weekday::Tue)),
         "w" | "we" | "wed" | "wednesday" => Some(Command::Guess(Weekday::Wed)),
@@ -100,7 +92,7 @@ fn parse_command(input: String) -> Option<Command> {
     }
 }
 
-fn display_weekday(weekday: chrono::Weekday) -> &'static str {
+fn display_weekday(weekday: Weekday) -> &'static str {
     match weekday {
         Weekday::Mon => "Monday",
         Weekday::Tue => "Tuesday",
@@ -156,12 +148,12 @@ impl Stats {
 
 impl fmt::Display for Stats {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Correct: {} / {} ({:.1}%) | Streak: {} | Duration: {:.2}s\nBest Streak: {} | Avg. Duration: {:.2}s\n",
+        write!(f, "\nStreak: {} | Duration: {:.2}s\nCorrect: {} / {} ({:.1}%) | Best Streak: {} | Avg. Duration: {:.2}s\n",
+            self.current_streak,
+            self.last_duration.num_milliseconds() as f64 / 1000.0,
             self.correct_guesses,
             self.total_guesses,
             (self.correct_guesses as f64 / self.total_guesses as f64) * 100.0,
-            self.current_streak,
-            self.last_duration.num_milliseconds() as f64 / 1000.0,
             self.best_streak,
             self.avg_duration.num_milliseconds() as f64 / 1000.0,
         )
