@@ -57,20 +57,26 @@ fn main() -> Result<()> {
     }
 }
 
-// Note that this value can be off by 1 depending on what centuries we're talking about.
-// Centuries that are cleanly divisible by 400 (e.g. 1600, 2000, etc.) have an extra "century leap year".
-// Centuries _with_ a century leap year have 36,525 days.
-// Centuries _without_ a century leap year have 36,524 days.
-const DAYS_IN_TWO_CENTURIES: i64 = 73048;
-
 enum Command {
     Guess(Weekday),
     Quit,
 }
 
 fn generate_date(mut rng: impl rand::Rng) -> NaiveDate {
-    let random = rng.gen_range(-DAYS_IN_TWO_CENTURIES..DAYS_IN_TWO_CENTURIES);
+    // October 15, 1582 is explicitly selected as the default lower end of the
+    // range from which we will select random dates because it is the earliest
+    // date on which the Gregorian calendar was adopted.
+    let default_start_date = NaiveDate::from_ymd_opt(1582, 10, 15).unwrap();
+
     let now = Local::now().date().naive_local();
+    if now < default_start_date {
+        panic!("Current date preceeds the adoption of the Gregorian calendar...)")
+    }
+
+    let start_to_now = now - default_start_date;
+    let now_to_end = Duration::days(365 * 50);
+
+    let random = rng.gen_range(-start_to_now.num_days()..now_to_end.num_days());
 
     match random {
         0 => now,
