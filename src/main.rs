@@ -46,7 +46,13 @@ fn main() -> Result<()> {
                         );
                     }
                     println!("{}", stats);
-                    break;
+
+                    println!("Press [ENTER] to continue");
+                    match rl.readline("")? {
+                        _ => {
+                            break;
+                        }
+                    }
                 }
                 Some(Command::Quit) => {
                     println!("Quitting...");
