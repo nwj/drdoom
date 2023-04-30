@@ -3,12 +3,12 @@ use chrono::prelude::*;
 use chrono::{Duration, Weekday};
 use rand::prelude::*;
 use rand_chacha::ChaCha20Rng;
-use rustyline::Editor;
+use rustyline::DefaultEditor;
 use std::fmt;
 
 fn main() -> Result<()> {
     let mut rng = ChaCha20Rng::from_entropy();
-    let mut rl = Editor::<()>::new();
+    let mut rl = DefaultEditor::new()?;
     let mut stats = Stats::default();
     let mut random_date;
     let mut prompt_time;
@@ -74,7 +74,7 @@ fn generate_date(mut rng: impl rand::Rng) -> NaiveDate {
     // date on which the Gregorian calendar was adopted.
     let default_start_date = NaiveDate::from_ymd_opt(1582, 10, 15).unwrap();
 
-    let now = Local::now().date().naive_local();
+    let now = Local::now().date_naive();
     if now < default_start_date {
         panic!("Current date preceeds the adoption of the Gregorian calendar...)")
     }
@@ -117,7 +117,7 @@ fn display_weekday(weekday: Weekday) -> &'static str {
 }
 
 fn is_was(date: NaiveDate) -> &'static str {
-    if date >= Local::now().date().naive_local() {
+    if date >= Local::now().date_naive() {
         "is"
     } else {
         "was"
