@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.86"
-chrono = "0.4"
+jiff = "0.1.10"
 rand = "0.8.5"
 rand_chacha = "0.3.1"
 rustyline = "14.0.0"

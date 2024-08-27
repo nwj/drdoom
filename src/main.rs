@@ -1,6 +1,6 @@
 use anyhow::Result;
-use chrono::prelude::*;
-use chrono::{Duration, Weekday};
+use jiff::civil::{date, Date, Weekday};
+use jiff::{Span, SpanRound, Timestamp, Unit, Zoned};
 use rand::prelude::*;
 use rand_chacha::ChaCha20Rng;
 use rustyline::DefaultEditor;
@@ -15,11 +15,11 @@ fn main() -> Result<()> {
 
     loop {
         random_date = generate_date(&mut rng);
-        prompt_time = Local::now();
+        prompt_time = Timestamp::now();
         println!(
             "What day of the week {}: {}?",
             is_was(random_date),
-            random_date.format("%B %d, %Y")
+            random_date.strftime("%B %d, %Y")
         );
 
         loop {
@@ -32,7 +32,7 @@ fn main() -> Result<()> {
                         stats.increment_correct(prompt_time);
                         println!(
                             "✅ Yes! {} {} a {}.",
-                            random_date.format("%B %d, %Y"),
+                            random_date.strftime("%B %d, %Y"),
                             is_was(random_date),
                             display_weekday(random_date.weekday())
                         );
@@ -40,7 +40,7 @@ fn main() -> Result<()> {
                         stats.increment_incorrect(prompt_time);
                         println!(
                             "❌ Nope. {} {} a {}.",
-                            random_date.format("%B %d, %Y"),
+                            random_date.strftime("%B %d, %Y"),
                             is_was(random_date),
                             display_weekday(random_date.weekday())
                         );
@@ -68,74 +68,78 @@ enum Command {
     Quit,
 }
 
-fn generate_date(mut rng: impl rand::Rng) -> NaiveDate {
+fn generate_date(mut rng: impl rand::Rng) -> Date {
     // October 15, 1582 is explicitly selected as the default lower end of the
     // range from which we will select random dates because it is the earliest
     // date on which the Gregorian calendar was adopted.
-    let default_start_date = NaiveDate::from_ymd_opt(1582, 10, 15).unwrap();
+    let default_start_date: Date = date(1582, 10, 15);
 
-    let now = Local::now().date_naive();
-    if now < default_start_date {
-        panic!("Current date preceeds the adoption of the Gregorian calendar...)")
+    let now = Zoned::now();
+    let now_date: Date = now.into();
+    if now_date < default_start_date {
+        panic!("Current system date preceeds the adoption of the Gregorian calendar...)")
     }
 
-    let start_to_now = now - default_start_date;
-    let now_to_end = Duration::days(365 * 50);
+    let start_to_now = default_start_date.until(now_date).unwrap();
+    let now_to_end = Span::new()
+        .years(100)
+        .round(SpanRound::new().largest(Unit::Day).relative(now_date))
+        .unwrap();
 
-    let random = rng.gen_range(-start_to_now.num_days()..now_to_end.num_days());
+    let random = rng.gen_range(-start_to_now.get_days()..now_to_end.get_days());
 
     match random {
-        0 => now,
-        _ => now + Duration::days(random),
+        0 => now_date,
+        _ => now_date + Span::new().days(random),
     }
 }
 
 fn parse_command(input: String) -> Option<Command> {
     match input.to_lowercase().trim() {
         "q" | "quit" | "exit" => Some(Command::Quit),
-        "m" | "mo" | "mon" | "monday" => Some(Command::Guess(Weekday::Mon)),
-        "tu" | "tue" | "tues" | "tuesday" => Some(Command::Guess(Weekday::Tue)),
-        "w" | "we" | "wed" | "wednesday" => Some(Command::Guess(Weekday::Wed)),
-        "th" | "thu" | "thur" | "thurs" | "thursday" => Some(Command::Guess(Weekday::Thu)),
-        "f" | "fr" | "fri" | "friday" => Some(Command::Guess(Weekday::Fri)),
-        "sa" | "sat" | "saturday" => Some(Command::Guess(Weekday::Sat)),
-        "su" | "sun" | "sunday" => Some(Command::Guess(Weekday::Sun)),
+        "m" | "mo" | "mon" | "monday" => Some(Command::Guess(Weekday::Monday)),
+        "tu" | "tue" | "tues" | "tuesday" => Some(Command::Guess(Weekday::Tuesday)),
+        "w" | "we" | "wed" | "wednesday" => Some(Command::Guess(Weekday::Wednesday)),
+        "th" | "thu" | "thur" | "thurs" | "thursday" => Some(Command::Guess(Weekday::Thursday)),
+        "f" | "fr" | "fri" | "friday" => Some(Command::Guess(Weekday::Friday)),
+        "sa" | "sat" | "saturday" => Some(Command::Guess(Weekday::Saturday)),
+        "su" | "sun" | "sunday" => Some(Command::Guess(Weekday::Sunday)),
         _ => None,
     }
 }
 
 fn display_weekday(weekday: Weekday) -> &'static str {
     match weekday {
-        Weekday::Mon => "Monday",
-        Weekday::Tue => "Tuesday",
-        Weekday::Wed => "Wednesday",
-        Weekday::Thu => "Thursday",
-        Weekday::Fri => "Friday",
-        Weekday::Sat => "Saturday",
-        Weekday::Sun => "Sunday",
+        Weekday::Monday => "Monday",
+        Weekday::Tuesday => "Tuesday",
+        Weekday::Wednesday => "Wednesday",
+        Weekday::Thursday => "Thursday",
+        Weekday::Friday => "Friday",
+        Weekday::Saturday => "Saturday",
+        Weekday::Sunday => "Sunday",
     }
 }
 
-fn is_was(date: NaiveDate) -> &'static str {
-    if date >= Local::now().date_naive() {
+fn is_was(date: Date) -> &'static str {
+    if date >= Zoned::now().into() {
         "is"
     } else {
         "was"
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct Stats {
     total_guesses: u32,
     correct_guesses: u32,
     current_streak: u32,
     best_streak: u32,
-    last_duration: Duration,
-    avg_duration: Duration,
+    last_duration: f64,
+    avg_duration: f64,
 }
 
 impl Stats {
-    fn increment_correct(&mut self, prompt_time: DateTime<Local>) -> () {
+    fn increment_correct(&mut self, prompt_time: Timestamp) -> () {
         self.total_guesses += 1;
         self.correct_guesses += 1;
         self.current_streak += 1;
@@ -145,16 +149,18 @@ impl Stats {
         self.update_durations(prompt_time);
     }
 
-    fn increment_incorrect(&mut self, prompt_time: DateTime<Local>) -> () {
+    fn increment_incorrect(&mut self, prompt_time: Timestamp) -> () {
         self.total_guesses += 1;
         self.current_streak = 0;
         self.update_durations(prompt_time);
     }
 
-    fn update_durations(&mut self, prompt_time: DateTime<Local>) -> () {
-        self.last_duration = Local::now() - prompt_time;
+    fn update_durations(&mut self, prompt_time: Timestamp) -> () {
+        self.last_duration = (Timestamp::now() - prompt_time)
+            .total(Unit::Second)
+            .unwrap();
         self.avg_duration = self.avg_duration
-            + ((self.last_duration - self.avg_duration) / self.total_guesses as i32);
+            + ((self.last_duration - self.avg_duration) / self.total_guesses as f64);
     }
 }
 
@@ -162,25 +168,12 @@ impl fmt::Display for Stats {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "\nStreak: {} | Duration: {:.2}s\nCorrect: {} / {} ({:.1}%) | Best Streak: {} | Avg. Duration: {:.2}s\n",
             self.current_streak,
-            self.last_duration.num_milliseconds() as f64 / 1000.0,
+            self.last_duration,
             self.correct_guesses,
             self.total_guesses,
             (self.correct_guesses as f64 / self.total_guesses as f64) * 100.0,
             self.best_streak,
-            self.avg_duration.num_milliseconds() as f64 / 1000.0,
+            self.avg_duration,
         )
-    }
-}
-
-impl Default for Stats {
-    fn default() -> Self {
-        Stats {
-            total_guesses: 0,
-            correct_guesses: 0,
-            current_streak: 0,
-            best_streak: 0,
-            last_duration: Duration::seconds(0),
-            avg_duration: Duration::seconds(0),
-        }
     }
 }
